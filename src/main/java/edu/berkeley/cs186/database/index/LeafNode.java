@@ -10,6 +10,7 @@ import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
 import javax.swing.plaf.SliderUI;
+import javax.swing.text.html.Option;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -164,8 +165,40 @@ class LeafNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        int order= metadata.getOrder();
+        int n = keys.size();
+        if(n+1<=2*order){
+            int index = InnerNode.numLessThanEqual(key, keys);
+            keys.add(index, key);
+            rids.add(index, rid);
+            sync();
+            return Optional.empty();
+        }else{
+            assert (n+1==2*order+1);
+            int index = InnerNode.numLessThanEqual(key, keys);
+            keys.add(index, key);
+            rids.add(index, rid);
 
-        return Optional.empty();
+            List<DataBox> leftKeys = keys.subList(0,order);
+            List<DataBox> rightKeys = keys.subList(order,2*order+1);
+            List<RecordId> leftRids = rids.subList(0,order);
+            List<RecordId> rightRids = rids.subList(order,2*order+1);
+
+            LeafNode newRightNode = new LeafNode(metadata,bufferManager,rightKeys,rightRids,this.rightSibling,treeContext);
+            long pageNum = newRightNode.getPage().getPageNum();
+
+
+            this.keys = leftKeys;
+            this.rids = leftRids;
+            this.rightSibling = Optional.of(pageNum);
+
+            sync();
+
+
+            return Optional.of(new Pair<>(rightKeys.get(0),pageNum));
+        }
+
+
     }
 
     // See BPlusNode.bulkLoad.

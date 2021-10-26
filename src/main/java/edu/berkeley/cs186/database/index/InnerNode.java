@@ -11,6 +11,7 @@ import edu.berkeley.cs186.database.table.RecordId;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.function.LongFunction;
 
 /**
  * A inner node of a B+ tree. Every inner node in a B+ tree of order d stores
@@ -101,10 +102,39 @@ class InnerNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        int index = InnerNode.numLessThanEqual(key, keys);
+        BPlusNode child = getChild(index);
+        Optional<Pair<DataBox, Long>> o = child.put(key, rid);
 
-        return Optional.empty();
+        if (!o.isPresent()) {
+            return o;
+        }
+
+        Pair<DataBox,Long> p = o.get();
+        keys.add(index,p.getFirst());
+        children.add(index+1,p.getSecond());
+
+        int order = metadata.getOrder();
+        if(keys.size()<=2*order){
+            sync();
+            return Optional.empty();
+        }
+
+        assert(keys.size() == 2*order + 1);
+        List<DataBox> leftKeys = keys.subList(0,order);
+        DataBox middleKey = keys.get(order);
+        List<DataBox> rightKeys = keys.subList(order+1,2*order+1);
+        List<Long> leftChildren = children.subList(0,order+1);
+        List<Long> rightChildren = children.subList(order+1,2*order+2);
+
+        InnerNode n = new InnerNode(metadata,bufferManager,rightKeys,rightChildren,treeContext);
+        this.keys = leftKeys;
+        this.children = leftChildren;
+        sync();
+
+        return Optional.of(new Pair<>(middleKey,n.getPage().getPageNum()));
+
     }
-
     // See BPlusNode.bulkLoad.
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,

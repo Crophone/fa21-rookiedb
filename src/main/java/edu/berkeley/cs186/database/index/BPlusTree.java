@@ -11,6 +11,7 @@ import edu.berkeley.cs186.database.io.DiskSpaceManager;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.swing.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -257,6 +258,18 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
+        Optional<Pair<DataBox, Long>> o = root.put(key, rid);
+        if(!o.isPresent()){
+            return;
+        }
+
+        Pair<DataBox, Long> p = o.get();
+        List<DataBox> keys = new ArrayList<>();
+        keys.add(p.getFirst());
+        List<Long>  children = new ArrayList<>();
+        children.add(root.getPage().getPageNum());
+        children.add(p.getSecond());
+        updateRoot(new InnerNode(metadata,bufferManager,keys,children,lockContext));
 
         return;
     }
